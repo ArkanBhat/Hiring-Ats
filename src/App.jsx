@@ -16,10 +16,14 @@ import SettingsModal    from "./components/SettingsModal.jsx";
 import AnalyticsModal   from "./components/AnalyticsModal.jsx";
 import JobsModal        from "./components/JobsModal.jsx";
 import TalentPool       from "./components/TalentPool.jsx";
+import DocumentPortal  from "./components/DocumentPortal.jsx";
 
 const BLANK_FILTERS = { source: "", position: "", tag: "", sort: "newest" };
 
 export default function App() {
+  // Detect candidate portal route (?upload=TOKEN) — show portal only, hide full ATS
+  const portalToken = new URLSearchParams(window.location.search).get("upload");
+
   const [loaded, setLoaded]         = useState(false);
   const [candidates, setCandidates] = useState([]);
   const [jobs,       setJobs]       = useState([]);
@@ -210,6 +214,20 @@ export default function App() {
     });
   };
 
+  const buildDocumentEmail = (c) => {
+    const token = c.documentToken || `doc_${uid()}`;
+    if (!c.documentToken) patch(c.id, { documentToken: token }, "Document request link generated");
+    const uploadLink = `${window.location.origin}${window.location.pathname}?upload=${token}`;
+    const docList    = (c.documents || []).map((d) => `  • ${d.name}`).join("\n");
+    const v = { name: c.name, position: c.position, company: settings.company, uploadLink, documentList: docList, signature: settings.signature };
+    setEmail({
+      candidateId: c.id, to: c.email, attach: false,
+      subject: fill(settings.docRequestSubject, v),
+      body:    fill(settings.docRequestBody,    v),
+      kind: "documents",
+    });
+  };
+
   const buildRejectionEmail = (c) => {
     const v = { name: c.name, position: c.position, company: settings.company, signature: settings.signature };
     setEmail({
@@ -219,6 +237,9 @@ export default function App() {
       kind: "rejection",
     });
   };
+
+  // ── Portal route — render before full ATS mounts ─────────
+  if (portalToken) return <DocumentPortal token={portalToken} />;
 
   if (!loaded) return <div className="ats-root"><div className="loading">Loading workspace…</div></div>;
 
@@ -387,6 +408,7 @@ export default function App() {
           onClose={() => setOpenId(null)}
           onDelete={() => removeCandidate(open.id)}
           onInterviewEmail={(cOverride) => buildInterviewEmail(cOverride || open)}
+          onDocEmail={() => buildDocumentEmail(open)}
           onRejectEmail={() => buildRejectionEmail(open)}
           onOffer={() => setOfferFor(open.id)}
         />

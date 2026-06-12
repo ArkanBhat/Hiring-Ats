@@ -12,7 +12,7 @@ import { sGet } from "../lib/storage.js";
 
 export default function CandidateDrawer({
   c, settings, patch, flash, onClose, onDelete,
-  onInterviewEmail, onRejectEmail, onOffer,
+  onInterviewEmail, onRejectEmail, onOffer, onDocEmail,
 }) {
   const meta = stageMeta(c.status);
   const moveTo = (status, note) => patch(c.id, { status }, note);
@@ -161,7 +161,10 @@ export default function CandidateDrawer({
             )}
 
             {c.status === "documents" && (
-              <StageBlock label="Collect documents. Release the offer once all are received.">
+              <StageBlock label="Send the candidate a secure upload link, then track docs below.">
+                <button className="btn full" style={{ marginBottom: 10 }} onClick={onDocEmail}>
+                  <Mail size={14} /> Send document request email
+                </button>
                 <DocChecklist c={c} patch={patch} />
                 <button className="btn primary mt"
                   disabled={!(c.documents?.length && c.documents.every((d) => d.collected))}

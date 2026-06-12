@@ -60,6 +60,24 @@ Please reply to confirm the slot works for you. Your submitted resume is attache
 
 Best regards,
 {{signature}}`,
+  docRequestSubject: "Action required: Document submission — {{position}} at {{company}}",
+  docRequestBody: `Hi {{name}},
+
+Congratulations! We're pleased to move forward with your application for the {{position}} role at {{company}}.
+
+To complete the process, please upload your documents via the secure link below:
+
+{{uploadLink}}
+
+Required documents:
+{{documentList}}
+
+This link is unique to you — please do not share it. Complete your submission at the earliest convenience.
+
+If you have any questions, feel free to reply to this email.
+
+Best regards,
+{{signature}}`,
   rejectionSubject: "Update on your application — {{position}}",
   rejectionBody: `Hi {{name}},
 
