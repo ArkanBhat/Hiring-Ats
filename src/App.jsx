@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   ClipboardList, Search, Settings as Cog, Plus, FileText, Star,
   Calendar, BarChart2, Briefcase, X as XIcon, CheckSquare,
-  Download, ThumbsDown, ChevronDown, Users, Clock,
+  Download, ThumbsDown, ChevronDown, Users, Clock, Globe, ShieldAlert,
 } from "lucide-react";
 import { STAGES, stageMeta, DEFAULT_SETTINGS, TAGS } from "./config.js";
 import { uid, now, fmtDate, initials, fill, download, daysSince } from "./lib/helpers.js";
@@ -17,12 +17,17 @@ import AnalyticsModal   from "./components/AnalyticsModal.jsx";
 import JobsModal        from "./components/JobsModal.jsx";
 import TalentPool       from "./components/TalentPool.jsx";
 import DocumentPortal  from "./components/DocumentPortal.jsx";
+import CareersPortal   from "./components/CareersPortal.jsx";
+import ApplyPortal     from "./components/ApplyPortal.jsx";
 
 const BLANK_FILTERS = { source: "", position: "", tag: "", sort: "newest" };
 
 export default function App() {
-  // Detect candidate portal route (?upload=TOKEN) — show portal only, hide full ATS
-  const portalToken = new URLSearchParams(window.location.search).get("upload");
+  // Detect public-facing routes — these render standalone and skip the full ATS
+  const params      = new URLSearchParams(window.location.search);
+  const portalToken = params.get("upload");
+  const careersMode = params.get("careers");
+  const applyJobId  = params.get("apply");
 
   const [loaded, setLoaded]         = useState(false);
   const [candidates, setCandidates] = useState([]);
@@ -238,8 +243,10 @@ export default function App() {
     });
   };
 
-  // ── Portal route — render before full ATS mounts ─────────
+  // ── Public routes — render before full ATS mounts ─────────
   if (portalToken) return <DocumentPortal token={portalToken} />;
+  if (careersMode) return <CareersPortal />;
+  if (applyJobId)  return <ApplyPortal jobId={applyJobId} />;
 
   if (!loaded) return <div className="ats-root"><div className="loading">Loading workspace…</div></div>;
 
@@ -266,6 +273,9 @@ export default function App() {
             {jobs.filter((j) => j.status === "open").length > 0 &&
               <span className="jobs-badge">{jobs.filter((j) => j.status === "open").length}</span>}
           </button>
+          <a className="btn ghost" href={`${window.location.pathname}?careers=1`} target="_blank" rel="noopener noreferrer">
+            <Globe size={15} /> Careers page
+          </a>
           <button className="btn ghost" onClick={() => setShowTalentPool(true)}>
             <Users size={15} /> Pool
             {talentCount > 0 && <span className="jobs-badge" style={{ background: "var(--muted)" }}>{talentCount}</span>}
@@ -350,6 +360,7 @@ export default function App() {
                           <div className="card-role">{c.position}</div>
                         </div>
                         {c.priority && <span className="priority-badge" title="High priority"><Star size={11} fill="#F59E0B" color="#F59E0B" /></span>}
+                        {c.knockedOut && <span className="priority-badge" title="Failed screening question" style={{ color: "var(--bad)" }}><ShieldAlert size={11} /></span>}
                         {sl && <span className="fit-badge-sm" style={{ color: sl.color, background: sl.bg }}>{c.fitScore}%</span>}
                       </div>
                       <div className="card-meta">

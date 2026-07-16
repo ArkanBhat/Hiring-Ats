@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Briefcase, Plus, Check, Users, ChevronDown, ChevronUp } from "lucide-react";
+import { Briefcase, Plus, Check, Users, ChevronDown, ChevronUp, Link2, X, ShieldQuestion } from "lucide-react";
 import { Modal } from "./primitives.jsx";
 import { uid, now } from "../lib/helpers.js";
 
@@ -9,16 +9,35 @@ const STATUS_STYLE = {
   closed: { label: "Closed", bg: "rgba(138,129,117,.15)", color: "var(--faint)" },
 };
 
-const BLANK = { title: "", department: "", hiringManager: "", headcount: 1, description: "" };
+const BLANK = { title: "", department: "", hiringManager: "", headcount: 1, description: "", screeningQuestions: [] };
+
+function careersUrl() {
+  return `${window.location.origin}${window.location.pathname}?careers=1`;
+}
+function applyUrl(jobId) {
+  return `${window.location.origin}${window.location.pathname}?apply=${jobId}`;
+}
 
 export default function JobsModal({ jobs, setJobs, candidates, onClose, flash }) {
   const [creating, setCreating] = useState(false);
   const [form, setForm]         = useState(BLANK);
   const [expanded, setExpanded] = useState(null);
 
+  const copy = (text, msg) => {
+    navigator.clipboard?.writeText(text).then(() => flash(msg)).catch(() => flash("Couldn't copy — copy manually"));
+  };
+
+  const addQuestion = () =>
+    setForm((f) => ({ ...f, screeningQuestions: [...f.screeningQuestions, { id: uid(), text: "", requireYes: true }] }));
+  const updateQuestion = (id, patch) =>
+    setForm((f) => ({ ...f, screeningQuestions: f.screeningQuestions.map((q) => (q.id === id ? { ...q, ...patch } : q)) }));
+  const removeQuestion = (id) =>
+    setForm((f) => ({ ...f, screeningQuestions: f.screeningQuestions.filter((q) => q.id !== id) }));
+
   const save = () => {
     if (!form.title.trim()) { flash("Job title is required"); return; }
-    setJobs((p) => [{ id: uid(), ...form, headcount: Number(form.headcount) || 1, status: "open", createdAt: now() }, ...p]);
+    const questions = form.screeningQuestions.filter((q) => q.text.trim());
+    setJobs((p) => [{ id: uid(), ...form, screeningQuestions: questions, headcount: Number(form.headcount) || 1, status: "open", createdAt: now() }, ...p]);
     setForm(BLANK);
     setCreating(false);
     flash("Position created");
@@ -55,7 +74,23 @@ export default function JobsModal({ jobs, setJobs, candidates, onClose, flash })
         {isExp && (
           <div className="job-expanded">
             {j.description && <p className="job-desc">{j.description}</p>}
+            {j.screeningQuestions?.length > 0 && (
+              <div className="screen-list">
+                {j.screeningQuestions.map((q) => (
+                  <div key={q.id} className="screen-item">
+                    <ShieldQuestion size={12} />
+                    <span>{q.text}</span>
+                    <span className="screen-expect">requires: {q.requireYes ? "Yes" : "No"}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="row-btns" style={{ marginTop: 8 }}>
+              {j.status === "open" && (
+                <button className="btn xs ghost" onClick={() => copy(applyUrl(j.id), "Apply link copied")}>
+                  <Link2 size={12} /> Copy apply link
+                </button>
+              )}
               {j.status !== "open"   && <button className="btn xs good" onClick={() => setStatus(j.id, "open")}>Reopen</button>}
               {j.status === "open"   && <button className="btn xs warn" onClick={() => setStatus(j.id, "paused")}>Pause</button>}
               {j.status !== "closed" && <button className="btn xs bad"  onClick={() => setStatus(j.id, "closed")}>Close</button>}
@@ -70,9 +105,14 @@ export default function JobsModal({ jobs, setJobs, candidates, onClose, flash })
     <Modal title="Open positions" onClose={onClose} icon={<Briefcase size={16} />} wide>
       <div className="jobs-body">
         {!creating ? (
-          <button className="btn primary" style={{ marginBottom: 16 }} onClick={() => setCreating(true)}>
-            <Plus size={14} /> New position
-          </button>
+          <div className="row-btns" style={{ marginBottom: 16 }}>
+            <button className="btn primary" onClick={() => setCreating(true)}>
+              <Plus size={14} /> New position
+            </button>
+            <button className="btn ghost" onClick={() => copy(careersUrl(), "Careers page link copied")}>
+              <Link2 size={14} /> Copy careers page link
+            </button>
+          </div>
         ) : (
           <div className="job-form">
             <div className="form-grid">
@@ -91,9 +131,36 @@ export default function JobsModal({ jobs, setJobs, candidates, onClose, flash })
               </label>
               <label className="span2">Description
                 <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  rows={2} placeholder="Brief role summary…" />
+                  rows={2} placeholder="Brief role summary… (also used to compute resume match score)" />
               </label>
             </div>
+
+            <div className="screen-builder">
+              <div className="screen-builder-head">
+                <span><ShieldQuestion size={13} /> Screening questions</span>
+                <button className="btn xs ghost" onClick={addQuestion}><Plus size={11} /> Add question</button>
+              </div>
+              {form.screeningQuestions.length === 0 && (
+                <div className="an-empty" style={{ padding: "6px 0" }}>
+                  None yet. Candidates who fail a required question are auto-rejected on application.
+                </div>
+              )}
+              {form.screeningQuestions.map((q) => (
+                <div key={q.id} className="screen-row">
+                  <input
+                    value={q.text}
+                    placeholder="e.g. Are you authorized to work in this country?"
+                    onChange={(e) => updateQuestion(q.id, { text: e.target.value })}
+                  />
+                  <select value={q.requireYes ? "yes" : "no"} onChange={(e) => updateQuestion(q.id, { requireYes: e.target.value === "yes" })}>
+                    <option value="yes">Requires Yes</option>
+                    <option value="no">Requires No</option>
+                  </select>
+                  <button className="icon-btn" onClick={() => removeQuestion(q.id)}><X size={14} /></button>
+                </div>
+              ))}
+            </div>
+
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
               <button className="btn primary" onClick={save}><Check size={14} /> Save</button>
               <button className="btn ghost" onClick={() => { setCreating(false); setForm(BLANK); }}>Cancel</button>
