@@ -3,6 +3,7 @@ import {
   ClipboardList, Search, Settings as Cog, Plus, FileText, Star,
   Calendar, BarChart2, Briefcase, X as XIcon, CheckSquare,
   Download, ThumbsDown, ChevronDown, Users, Clock, Globe, ShieldAlert,
+  Upload, ThumbsUp,
 } from "lucide-react";
 import { STAGES, stageMeta, DEFAULT_SETTINGS, TAGS } from "./config.js";
 import { uid, now, fmtDate, initials, fill, download, daysSince } from "./lib/helpers.js";
@@ -10,6 +11,7 @@ import { sGet, sSet, sDel } from "./lib/storage.js";
 import { scoreLabel } from "./lib/scoreResume.js";
 import CandidateDrawer  from "./components/CandidateDrawer.jsx";
 import AddModal         from "./components/AddModal.jsx";
+import BulkUploadModal  from "./components/BulkUploadModal.jsx";
 import EmailModal       from "./components/EmailModal.jsx";
 import OfferModal       from "./components/OfferModal.jsx";
 import SettingsModal    from "./components/SettingsModal.jsx";
@@ -39,6 +41,7 @@ export default function App() {
 
   // modals
   const [showAdd,        setShowAdd]        = useState(false);
+  const [showBulkAdd,    setShowBulkAdd]    = useState(false);
   const [showSettings,   setShowSettings]   = useState(false);
   const [showAnalytics,  setShowAnalytics]  = useState(false);
   const [showJobs,       setShowJobs]       = useState(false);
@@ -93,30 +96,52 @@ export default function App() {
     ), []);
 
   /* ── add candidate ───────────────────────────── */
+  const buildCandidate = (data, resume) => ({
+    id: uid(), name: data.name, email: data.email, phone: data.phone,
+    position: data.position, source: data.source || "Direct",
+    status: "applied", resumeName: resume ? resume.name : null,
+    resumeText: data.resumeText || "",
+    fitScore: data.fitScore ?? null,
+    priority: false, referredBy: data.referredBy || "", shortlisted: false,
+    tags: [], notes: [], rejectionReason: null,
+    interview: null, feedback: null, documents: [], offer: null,
+    activity: [{ at: now(), text: "Application created" }],
+    createdAt: now(), updatedAt: now(),
+  });
+
   const addCandidate = async (data, resume) => {
     const dup = candidates.find(
       (c) => c.email && data.email && c.email.toLowerCase() === data.email.toLowerCase()
     );
     if (dup) { flash(`${dup.name} already exists with this email`); return; }
 
-    const id = uid();
-    const c = {
-      id, name: data.name, email: data.email, phone: data.phone,
-      position: data.position, source: data.source || "Direct",
-      status: "applied", resumeName: resume ? resume.name : null,
-      resumeText: data.resumeText || "",
-      fitScore: data.fitScore ?? null,
-      priority: false, referredBy: data.referredBy || "",
-      tags: [], notes: [], rejectionReason: null,
-      interview: null, feedback: null, documents: [], offer: null,
-      activity: [{ at: now(), text: "Application created" }],
-      createdAt: now(), updatedAt: now(),
-    };
-    if (resume) await sSet(`resume:${id}`, resume);
+    const c = buildCandidate(data, resume);
+    if (resume) await sSet(`resume:${c.id}`, resume);
     setCandidates((p) => [c, ...p]);
     setShowAdd(false);
     setReengagePrefill(null);
     flash("Candidate added");
+  };
+
+  /* ── bulk add candidates (from Bulk upload modal) ────────── */
+  const addCandidatesBulk = async (entries) => {
+    const existingEmails = new Set(candidates.map((c) => (c.email || "").toLowerCase()).filter(Boolean));
+    const added = [];
+    const skipped = [];
+
+    for (const entry of entries) {
+      const emailLc = (entry.data.email || "").toLowerCase();
+      if (emailLc && existingEmails.has(emailLc)) { skipped.push(entry.data.name || entry.data.email); continue; }
+      const c = buildCandidate(entry.data, entry.resume);
+      if (entry.resume) await sSet(`resume:${c.id}`, entry.resume);
+      added.push(c);
+      if (emailLc) existingEmails.add(emailLc);
+    }
+
+    if (added.length) setCandidates((p) => [...added, ...p]);
+    setShowBulkAdd(false);
+    if (skipped.length) flash(`Added ${added.length} · skipped ${skipped.length} duplicate${skipped.length !== 1 ? "s" : ""}`);
+    else flash(`Added ${added.length} candidate${added.length !== 1 ? "s" : ""}`);
   };
 
   const removeCandidate = async (id) => {
@@ -197,22 +222,32 @@ export default function App() {
 
   /* ── email builders ──────────────────────────── */
   const buildInterviewEmail = (c = open) => {
+    const locationLine = c.interview?.mode === "Phone"
+      ? `Phone: ${c.phone || "TBD"}`
+      : c.interview?.mode === "In-person"
+        ? `Location: ${c.interview?.location || "TBD"}`
+        : `Meeting link: ${c.interview?.location || "TBD"}`;
     const v = {
       name: c.name, position: c.position, company: settings.company,
       date: fmtDate(c.interview?.date), time: c.interview?.time || "TBD",
-      mode: c.interview?.mode || "TBD",
-      locationLine: c.interview?.mode === "Phone"
-        ? `Phone: ${c.phone || "TBD"}`
-        : c.interview?.mode === "In-person"
-          ? `Location: ${c.interview?.location || "TBD"}`
-          : `Meeting link: ${c.interview?.location || "TBD"}`,
+      mode: c.interview?.mode || "TBD", locationLine,
       interviewer: c.interview?.interviewer || "TBD",
       signature:   settings.signature,
     };
+
+    let interviewerMail = null;
+    if (c.interview?.interviewerEmail) {
+      interviewerMail = {
+        to: c.interview.interviewerEmail,
+        subject: fill(settings.interviewerSubject, v),
+        body:    fill(settings.interviewerBody,    v),
+      };
+    }
+
     setEmail({
       candidateId: c.id, candidateName: c.name, position: c.position,
       to: c.email, attach: !!c.resumeName,
-      interview: c.interview,
+      interview: c.interview, interviewerMail,
       subject: fill(settings.interviewSubject, v),
       body:    fill(settings.interviewBody,    v),
       kind: "interview",
@@ -231,6 +266,17 @@ export default function App() {
       body:    fill(settings.docRequestBody,    v),
       kind: "documents",
     });
+  };
+
+  /* ── quick sourcing actions (Applied column cards) ───────── */
+  const quickShortlist = (c) => {
+    patch(c.id, { shortlisted: true }, "Shortlisted");
+    flash(`${c.name} shortlisted`);
+  };
+
+  const quickReject = (c) => {
+    patch(c.id, { status: "rejected", rejectionReason: "Not qualified" }, "Rejected at sourcing stage");
+    buildRejectionEmail(c);
   };
 
   const buildRejectionEmail = (c) => {
@@ -285,6 +331,9 @@ export default function App() {
             <CheckSquare size={15} /> {selectMode ? "Cancel" : "Select"}
           </button>
           <button className="btn ghost" onClick={() => setShowSettings(true)}><Cog size={15} /> Settings</button>
+          <button className="btn ghost" onClick={() => setShowBulkAdd(true)}>
+            <Upload size={15} /> Bulk upload
+          </button>
           <button className="btn primary" onClick={() => { setReengagePrefill(null); setShowAdd(true); }}>
             <Plus size={16} /> New candidate
           </button>
@@ -342,38 +391,47 @@ export default function App() {
                   const sl       = scoreLabel(c.fitScore);
                   const selected = selectedIds.has(c.id);
                   const stale    = daysSince(c.updatedAt) > 6 && !["hired","rejected"].includes(c.status);
+                  const showQuick = s.id === "applied" && !selectMode && !c.shortlisted;
                   return (
-                    <button
-                      className={`card${selected ? " card-selected" : ""}`}
-                      key={c.id}
-                      onClick={() => selectMode ? toggleSelect(c.id) : setOpenId(c.id)}
-                    >
-                      {selectMode && (
-                        <div className={`card-checkbox${selected ? " checked" : ""}`}>
-                          {selected && <span>✓</span>}
+                    <div className="card-wrap" key={c.id}>
+                      <button
+                        className={`card${selected ? " card-selected" : ""}`}
+                        onClick={() => selectMode ? toggleSelect(c.id) : setOpenId(c.id)}
+                      >
+                        {selectMode && (
+                          <div className={`card-checkbox${selected ? " checked" : ""}`}>
+                            {selected && <span>✓</span>}
+                          </div>
+                        )}
+                        <div className="card-top">
+                          <span className="avatar" style={{ background: s.color }}>{initials(c.name)}</span>
+                          <div className="card-id">
+                            <div className="card-name">{c.name}</div>
+                            <div className="card-role">{c.position}</div>
+                          </div>
+                          {c.priority && <span className="priority-badge" title="High priority"><Star size={11} fill="#F59E0B" color="#F59E0B" /></span>}
+                          {c.knockedOut && <span className="priority-badge" title="Failed screening question" style={{ color: "var(--bad)" }}><ShieldAlert size={11} /></span>}
+                          {sl && <span className="fit-badge-sm" style={{ color: sl.color, background: sl.bg }}>{c.fitScore}%</span>}
+                        </div>
+                        <div className="card-meta">
+                          {c.resumeName && <span className="chip"><FileText size={11} /> CV</span>}
+                          {c.shortlisted && <span className="chip good-chip"><ThumbsUp size={10} /> Shortlisted</span>}
+                          {c.feedback?.rating > 0 && <span className="chip"><Star size={11} /> {c.feedback.rating}/5</span>}
+                          {c.interview?.date && <span className="chip"><Calendar size={11} /> {fmtDate(c.interview.date)}</span>}
+                          {stale && <span className="stale-badge"><Clock size={9} /> {daysSince(c.updatedAt)}d</span>}
+                          {(c.tags || []).slice(0, 2).map((tid) => {
+                            const tm = TAGS.find((t) => t.id === tid);
+                            return tm ? <span key={tid} className="chip tag-chip-sm" style={{ "--tc": tm.color }}>{tm.label}</span> : null;
+                          })}
+                        </div>
+                      </button>
+                      {showQuick && (
+                        <div className="card-quick-actions">
+                          <button className="btn xs good" onClick={() => quickShortlist(c)}><ThumbsUp size={11} /> Shortlist</button>
+                          <button className="btn xs bad" onClick={() => quickReject(c)}><ThumbsDown size={11} /> Reject</button>
                         </div>
                       )}
-                      <div className="card-top">
-                        <span className="avatar" style={{ background: s.color }}>{initials(c.name)}</span>
-                        <div className="card-id">
-                          <div className="card-name">{c.name}</div>
-                          <div className="card-role">{c.position}</div>
-                        </div>
-                        {c.priority && <span className="priority-badge" title="High priority"><Star size={11} fill="#F59E0B" color="#F59E0B" /></span>}
-                        {c.knockedOut && <span className="priority-badge" title="Failed screening question" style={{ color: "var(--bad)" }}><ShieldAlert size={11} /></span>}
-                        {sl && <span className="fit-badge-sm" style={{ color: sl.color, background: sl.bg }}>{c.fitScore}%</span>}
-                      </div>
-                      <div className="card-meta">
-                        {c.resumeName && <span className="chip"><FileText size={11} /> CV</span>}
-                        {c.feedback?.rating > 0 && <span className="chip"><Star size={11} /> {c.feedback.rating}/5</span>}
-                        {c.interview?.date && <span className="chip"><Calendar size={11} /> {fmtDate(c.interview.date)}</span>}
-                        {stale && <span className="stale-badge"><Clock size={9} /> {daysSince(c.updatedAt)}d</span>}
-                        {(c.tags || []).slice(0, 2).map((tid) => {
-                          const tm = TAGS.find((t) => t.id === tid);
-                          return tm ? <span key={tid} className="chip tag-chip-sm" style={{ "--tc": tm.color }}>{tm.label}</span> : null;
-                        })}
-                      </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -432,6 +490,14 @@ export default function App() {
           jobs={jobs.filter((j) => j.status === "open")}
           candidates={candidates}
           prefill={reengagePrefill}
+        />
+      )}
+
+      {showBulkAdd && (
+        <BulkUploadModal
+          onClose={() => setShowBulkAdd(false)}
+          onSave={addCandidatesBulk} flash={flash}
+          jobs={jobs.filter((j) => j.status === "open")}
         />
       )}
 

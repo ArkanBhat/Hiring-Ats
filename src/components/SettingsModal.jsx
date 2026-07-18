@@ -32,6 +32,12 @@ export default function SettingsModal({ settings, setSettings, onClose }) {
         <label className="span2">Interview email — body
           <textarea rows={6} value={s.interviewBody} onChange={(e) => setS({ ...s, interviewBody: e.target.value })} />
         </label>
+        <label className="span2">Interviewer notification — subject
+          <input value={s.interviewerSubject} onChange={(e) => setS({ ...s, interviewerSubject: e.target.value })} />
+        </label>
+        <label className="span2">Interviewer notification — body
+          <textarea rows={5} value={s.interviewerBody} onChange={(e) => setS({ ...s, interviewerBody: e.target.value })} />
+        </label>
         <label className="span2">Rejection email — subject
           <input value={s.rejectionSubject} onChange={(e) => setS({ ...s, rejectionSubject: e.target.value })} />
         </label>

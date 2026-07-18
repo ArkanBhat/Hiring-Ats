@@ -9,6 +9,7 @@ export function InterviewForm({ c, patch, flash, onScheduled }) {
     mode: c.interview?.mode || "Video call",
     location: c.interview?.location || "",
     interviewer: c.interview?.interviewer || "",
+    interviewerEmail: c.interview?.interviewerEmail || "",
   });
 
   const save = () => {
@@ -28,6 +29,7 @@ export function InterviewForm({ c, patch, flash, onScheduled }) {
         </select>
       </label>
       <label>Interviewer<input value={d.interviewer} onChange={(e) => setD({ ...d, interviewer: e.target.value })} placeholder="Name" /></label>
+      <label>Interviewer email<input type="email" value={d.interviewerEmail} onChange={(e) => setD({ ...d, interviewerEmail: e.target.value })} placeholder="Optional — sends them an invite too" /></label>
       {d.mode === "Phone" ? (
         <label className="span2">Candidate phone
           <input value={c.phone || ""} readOnly style={{ background: "var(--bg)", color: "var(--muted)" }} />

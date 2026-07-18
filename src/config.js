@@ -59,6 +59,20 @@ Please reply to confirm the slot works for you. Your submitted resume is attache
 
 Best regards,
 {{signature}}`,
+  interviewerSubject: "Interview scheduled — {{name}} for {{position}}",
+  interviewerBody: `Hi {{interviewer}},
+
+You're scheduled to interview {{name}} for the {{position}} role.
+
+  • Date: {{date}}
+  • Time: {{time}}
+  • Mode: {{mode}}
+  • {{locationLine}}
+
+Please review the candidate's resume beforehand if attached.
+
+Best regards,
+{{signature}}`,
   docRequestSubject: "Action required: Document submission — {{position}} at {{company}}",
   docRequestBody: `Hi {{name}},
 

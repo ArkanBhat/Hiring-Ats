@@ -12,6 +12,9 @@ export default function EmailModal({ payload, onClose, patch, flash, settings })
   const [sending, setSending] = useState(false);
   const [sent,    setSent]    = useState(false);
 
+  const [ivSubject, setIvSubject] = useState(payload.interviewerMail?.subject || "");
+  const [ivBody,    setIvBody]    = useState(payload.interviewerMail?.body    || "");
+
   const isInterview = payload.kind === "interview";
   const canSendJS   = isEmailJSConfigured(settings);
 
@@ -29,6 +32,16 @@ export default function EmailModal({ payload, onClose, patch, flash, settings })
   const openMail = () => {
     window.open(`mailto:${payload.to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, "_blank");
     patch(payload.candidateId, {}, `${isInterview ? "Interview" : "Rejection"} email opened`);
+  };
+
+  const copyInterviewer = async () => {
+    try { await navigator.clipboard.writeText(`Subject: ${ivSubject}\n\n${ivBody}`); flash("Copied to clipboard"); }
+    catch { flash("Copy failed — select manually"); }
+  };
+
+  const openInterviewerMail = () => {
+    window.open(`mailto:${payload.interviewerMail.to}?subject=${encodeURIComponent(ivSubject)}&body=${encodeURIComponent(ivBody)}`, "_blank");
+    patch(payload.candidateId, {}, "Interviewer notified");
   };
 
   const addToCalendar = () => {
@@ -103,6 +116,23 @@ export default function EmailModal({ payload, onClose, patch, flash, settings })
           <CalendarPlus size={13} />
           <button className="link" onClick={addToCalendar}>Download .ics calendar invite</button>
           — attach it to the email so the candidate can add it to their calendar.
+        </div>
+      )}
+
+      {payload.interviewerMail && (
+        <div className="interviewer-block">
+          <div className="settings-section-head" style={{ marginBottom: 10 }}>
+            <Mail size={13} />
+            <span>Also notify the interviewer — {payload.interviewerMail.to}</span>
+          </div>
+          <div className="form-grid">
+            <label className="span2">Subject<input value={ivSubject} onChange={(e) => setIvSubject(e.target.value)} /></label>
+            <label className="span2">Body<textarea rows={6} value={ivBody} onChange={(e) => setIvBody(e.target.value)} /></label>
+          </div>
+          <div className="row-btns" style={{ marginTop: 10 }}>
+            <button className="btn ghost xs" onClick={copyInterviewer}><ClipboardList size={12} /> Copy</button>
+            <button className="btn xs" onClick={openInterviewerMail}><Mail size={12} /> Open mail app</button>
+          </div>
         </div>
       )}
 

@@ -116,10 +116,27 @@ export default function CandidateDrawer({
 
           {/* ── Actions ────────────────────────────────────── */}
           <Section title="Actions" icon={<Sparkles size={14} />}>
-            {c.status === "applied" && (
-              <StageBlock label="Fill in the details and click Schedule — the invite email will open automatically.">
+            {c.status === "applied" && !c.shortlisted && (
+              <StageBlock label="Sourcing — review the application and decide.">
+                <div className="row-btns">
+                  <button className="btn good" onClick={() => patch(c.id, { shortlisted: true }, "Shortlisted")}>
+                    <ThumbsUp size={14} /> Shortlist
+                  </button>
+                  <button className="btn bad" onClick={() => setShowRejectForm(true)}>
+                    <ThumbsDown size={14} /> Reject
+                  </button>
+                </div>
+                {showRejectForm && <RejectForm reason={rejectReason} setReason={setRejectReason} onConfirm={doReject} onCancel={() => setShowRejectForm(false)} />}
+              </StageBlock>
+            )}
+
+            {c.status === "applied" && c.shortlisted && (
+              <StageBlock label="Shortlisted. Fill in the details and click Schedule — the invite email will open automatically.">
                 <InterviewForm c={c} patch={patch} flash={flash}
                   onScheduled={(interviewData) => onInterviewEmail({ ...c, interview: interviewData })} />
+                <button className="btn ghost xs mt" onClick={() => patch(c.id, { shortlisted: false }, "Moved back to sourcing")}>
+                  <RotateCcw size={12} /> Back to sourcing
+                </button>
               </StageBlock>
             )}
 
