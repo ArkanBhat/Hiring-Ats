@@ -16,6 +16,8 @@ export default function EmailModal({ payload, onClose, patch, flash, settings })
   const [ivBody,    setIvBody]    = useState(payload.interviewerMail?.body    || "");
 
   const isInterview = payload.kind === "interview";
+  const kindLabel = payload.kind === "interview" ? "Interview" : payload.kind === "offer" ? "Offer" : "Rejection";
+  const modalTitle = payload.kind === "interview" ? "Interview invitation" : payload.kind === "offer" ? "Offer letter email" : "Rejection email";
   const canSendJS   = isEmailJSConfigured(settings);
 
   const downloadResume = async () => {
@@ -31,7 +33,7 @@ export default function EmailModal({ payload, onClose, patch, flash, settings })
 
   const openMail = () => {
     window.open(`mailto:${payload.to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, "_blank");
-    patch(payload.candidateId, {}, `${isInterview ? "Interview" : "Rejection"} email opened`);
+    patch(payload.candidateId, {}, `${kindLabel} email opened`);
   };
 
   const copyInterviewer = async () => {
@@ -76,7 +78,7 @@ export default function EmailModal({ payload, onClose, patch, flash, settings })
         fromName:   settings.company || "Hiring Team",
       });
       setSent(true);
-      patch(payload.candidateId, {}, `${isInterview ? "Interview" : "Rejection"} email sent via EmailJS`);
+      patch(payload.candidateId, {}, `${kindLabel} email sent via EmailJS`);
       flash("Email sent successfully!");
       setTimeout(onClose, 1500);
     } catch (err) {
@@ -87,7 +89,7 @@ export default function EmailModal({ payload, onClose, patch, flash, settings })
   };
 
   return (
-    <Modal title={isInterview ? "Interview invitation" : "Rejection email"} onClose={onClose} icon={<Mail size={16} />}>
+    <Modal title={modalTitle} onClose={onClose} icon={<Mail size={16} />}>
       <div className="form-grid">
         <label className="span2">To<input value={payload.to} readOnly style={{ background: "var(--bg)", color: "var(--muted)" }} /></label>
         <label className="span2">Subject<input value={subject} onChange={(e) => setSubject(e.target.value)} /></label>

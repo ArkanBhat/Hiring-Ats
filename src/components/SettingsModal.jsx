@@ -32,6 +32,12 @@ export default function SettingsModal({ settings, setSettings, onClose }) {
         <label className="span2">Interview email — body
           <textarea rows={6} value={s.interviewBody} onChange={(e) => setS({ ...s, interviewBody: e.target.value })} />
         </label>
+        <label className="span2">Offer email — subject
+          <input value={s.offerSubject} onChange={(e) => setS({ ...s, offerSubject: e.target.value })} />
+        </label>
+        <div className="tpl-hint span2" style={{ marginTop: -6 }}>
+          The offer email body is the generated offer letter itself — edit its content per-candidate from the Offer letter screen.
+        </div>
         <label className="span2">Interviewer notification — subject
           <input value={s.interviewerSubject} onChange={(e) => setS({ ...s, interviewerSubject: e.target.value })} />
         </label>

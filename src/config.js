@@ -59,6 +59,7 @@ Please reply to confirm the slot works for you. Your submitted resume is attache
 
 Best regards,
 {{signature}}`,
+  offerSubject: "Your offer letter — {{position}} at {{company}}",
   interviewerSubject: "Interview scheduled — {{name}} for {{position}}",
   interviewerBody: `Hi {{interviewer}},
 

@@ -3,7 +3,7 @@ import { Award, ClipboardList, Download } from "lucide-react";
 import { Modal } from "./primitives.jsx";
 import { fmtDate, now, download } from "../lib/helpers.js";
 
-export default function OfferModal({ c, settings, onClose, patch, flash }) {
+export default function OfferModal({ c, settings, onClose, patch, flash, onReleased }) {
   const [o, setO] = useState(c.offer || {
     title: c.position, salary: "", currency: "₹", startDate: "", manager: "", notes: "",
   });
@@ -33,8 +33,9 @@ ${settings.signature}`
 
   const release = () => {
     if (!o.salary || !o.startDate) { flash("Add compensation and start date"); return; }
-    patch(c.id, { offer: { ...o, releasedAt: now() }, status: "offer" }, "Offer letter released");
-    flash("Offer released");
+    patch(c.id, { offer: { ...o, releasedAt: now(), letter }, status: "offer" }, "Offer letter released");
+    flash("Offer released — email opened");
+    onReleased?.(letter);
     onClose();
   };
 

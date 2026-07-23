@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import {
   X, User, Mail, Phone, Briefcase, FileText, Download, Sparkles, Check,
   ThumbsUp, ThumbsDown, PauseCircle, RotateCcw, AlertCircle, Award, Star,
-  Clock, Trash2, Calendar, Tag, StickyNote, Plus,
+  Clock, Trash2, Calendar, Tag, StickyNote, Plus, Pencil, Eye,
 } from "lucide-react";
 import { Section, StageBlock, Field } from "./primitives.jsx";
 import { InterviewForm, FeedbackForm, DocChecklist } from "./forms.jsx";
@@ -11,8 +11,8 @@ import { initials, fmtDate, fmtDateTime, dataUrlToBlob, download, now } from "..
 import { sGet } from "../lib/storage.js";
 
 export default function CandidateDrawer({
-  c, settings, patch, flash, onClose, onDelete,
-  onInterviewEmail, onRejectEmail, onOffer, onDocEmail,
+  c, settings, patch, flash, onClose, onDelete, jobs = [],
+  onInterviewEmail, onRejectEmail, onOffer, onDocEmail, onPreviewOffer,
 }) {
   const meta = stageMeta(c.status);
   const moveTo = (status, note) => patch(c.id, { status }, note);
@@ -20,6 +20,15 @@ export default function CandidateDrawer({
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectReason, setRejectReason]     = useState("");
   const [showTagPicker, setShowTagPicker]   = useState(false);
+  const [editingRole, setEditingRole]       = useState(false);
+  const [roleInput, setRoleInput]           = useState(c.position);
+
+  const saveRole = () => {
+    const next = roleInput.trim();
+    if (!next || next === c.position) { setEditingRole(false); return; }
+    patch(c.id, { position: next }, `Role changed from ${c.position} to ${next}`);
+    setEditingRole(false);
+  };
 
   const getResume = async () => {
     const r = await sGet(`resume:${c.id}`, null);
@@ -106,7 +115,27 @@ export default function CandidateDrawer({
           <Section title="Contact" icon={<User size={14} />}>
             <Field icon={<Mail size={13} />}     v={c.email}    href={`mailto:${c.email}`} />
             <Field icon={<Phone size={13} />}    v={c.phone}    href={`tel:${c.phone}`} />
-            <Field icon={<Briefcase size={13} />} v={c.position} />
+            {editingRole ? (
+              <div className="role-edit-row">
+                {jobs.length > 0 ? (
+                  <select value={roleInput} onChange={(e) => setRoleInput(e.target.value)}>
+                    {!jobs.some((j) => j.title === roleInput) && <option value={roleInput}>{roleInput}</option>}
+                    {jobs.map((j) => <option key={j.id} value={j.title}>{j.title}</option>)}
+                  </select>
+                ) : (
+                  <input value={roleInput} onChange={(e) => setRoleInput(e.target.value)} autoFocus />
+                )}
+                <button className="icon-btn" onClick={saveRole}><Check size={14} /></button>
+                <button className="icon-btn" onClick={() => { setRoleInput(c.position); setEditingRole(false); }}><X size={14} /></button>
+              </div>
+            ) : (
+              <div className="field role-field">
+                <Briefcase size={13} /><span>{c.position}</span>
+                <button className="icon-btn xs" title="Change role" onClick={() => { setRoleInput(c.position); setEditingRole(true); }}>
+                  <Pencil size={12} />
+                </button>
+              </div>
+            )}
             {c.referredBy && <Field icon={<User size={13} />} v={`Referred by ${c.referredBy}`} />}
             <div className="resume-row">
               <span className="muted"><FileText size={13} /> {c.resumeName || "No resume uploaded"}</span>
@@ -192,19 +221,30 @@ export default function CandidateDrawer({
             )}
 
             {c.status === "offer" && (
-              <StageBlock label="Offer released. Update once the candidate responds.">
+              <StageBlock label="Offer released. Track the candidate's response.">
                 {c.offer && (
                   <div className="offer-recap">
                     <div><b>{c.offer.title}</b> · {c.offer.currency} {c.offer.salary}</div>
                     <div className="muted">Start: {fmtDate(c.offer.startDate)} · Released {fmtDate(c.offer.releasedAt)}</div>
+                    {c.offer.response === "pending" && <div className="offer-pending-badge"><Clock size={11} /> Yet to accept</div>}
                   </div>
                 )}
-                <div className="row-btns">
+                <div className="decision-grid two-col">
                   <button className="btn good" onClick={() => moveTo("hired", "Offer accepted — hired")}><Check size={14} /> Accepted</button>
-                  <button className="btn bad"  onClick={() => setShowRejectForm(true)}><X size={14} /> Declined</button>
+                  <button className="btn ghost"
+                    onClick={() => patch(c.id, (x) => ({ ...x, offer: { ...x.offer, response: "pending" } }), "Still awaiting candidate's response")}>
+                    <Clock size={14} /> Yet to accept
+                  </button>
+                  <button className="btn warn" onClick={() => moveTo("hold", "Offer put on hold")}><PauseCircle size={14} /> On hold</button>
+                  <button className="btn bad" onClick={() => setShowRejectForm(true)}><ThumbsDown size={14} /> Rejected</button>
                 </div>
-                <button className="btn ghost xs mt" onClick={onOffer}><FileText size={12} /> View / regenerate letter</button>
-                {showRejectForm && <RejectForm reason={rejectReason} setReason={setRejectReason} onConfirm={doReject} onCancel={() => setShowRejectForm(false)} label="Reason offer was declined" />}
+                <div className="row-btns mt">
+                  {c.offer?.letter && (
+                    <button className="btn ghost xs" onClick={onPreviewOffer}><Eye size={12} /> Preview letter</button>
+                  )}
+                  <button className="btn ghost xs" onClick={onOffer}><FileText size={12} /> Edit / regenerate letter</button>
+                </div>
+                {showRejectForm && <RejectForm reason={rejectReason} setReason={setRejectReason} onConfirm={doReject} onCancel={() => setShowRejectForm(false)} label="Reason offer was rejected" />}
               </StageBlock>
             )}
 

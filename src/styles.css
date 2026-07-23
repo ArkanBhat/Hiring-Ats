@@ -155,6 +155,18 @@ body {
   padding: 6px; border-radius: 7px; display: grid; place-items: center; transition: .13s;
 }
 .icon-btn:hover { background: var(--bg); color: var(--ink); }
+.icon-btn.xs { padding: 3px; opacity: .5; }
+.icon-btn.xs:hover { opacity: 1; }
+
+.row-btns.mt { margin-top: 10px; }
+
+.role-field { justify-content: space-between; }
+.role-field span { flex: 1; }
+.role-edit-row { display: flex; align-items: center; gap: 6px; padding: 3px 0; }
+.role-edit-row select, .role-edit-row input {
+  flex: 1; font: inherit; font-size: 13px; border: 1.5px solid var(--accent);
+  border-radius: 7px; padding: 5px 8px; background: var(--surface); color: var(--ink); outline: none;
+}
 
 .link { background: none; border: none; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; padding: 0 4px; }
 
@@ -300,12 +312,17 @@ body {
 
 .decision-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 12px; }
 .decision-grid .btn { justify-content: center; padding: 8px 6px; font-size: 12px; }
+.decision-grid.two-col { grid-template-columns: 1fr 1fr; }
 
 .note { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--warn); margin-top: 8px; }
 
 .offer-recap {
   background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
   padding: 10px 12px; font-size: 13px; margin-bottom: 10px; line-height: 1.5;
+}
+.offer-pending-badge {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500;
+  color: var(--warn); background: var(--warn-soft); border-radius: 5px; padding: 2px 7px; margin-top: 6px;
 }
 
 .celebrate {
@@ -727,10 +744,11 @@ body {
 .tp-row {
   display: flex; align-items: center; gap: 14px;
   padding: 12px 20px; border-bottom: 1px solid var(--line);
-  transition: background .12s;
+  transition: background .12s; cursor: pointer;
 }
 .tp-row:last-child { border-bottom: none; }
 .tp-row:hover { background: var(--bg); }
+.tp-chevron { color: var(--faint); flex-shrink: 0; }
 
 .tp-info { flex: 1; min-width: 0; }
 .tp-name { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }

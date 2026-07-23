@@ -7,7 +7,7 @@ import { TAGS, stageMeta } from "../config.js";
 import { initials, fmtDate, download } from "../lib/helpers.js";
 import { scoreLabel } from "../lib/scoreResume.js";
 
-export default function TalentPool({ candidates, onClose, onReengage, flash }) {
+export default function TalentPool({ candidates, onClose, onReengage, onOpenCandidate, flash }) {
   const [query, setQuery]   = useState("");
   const [status, setStatus] = useState("all");   // all | hired | rejected
   const [role,   setRole]   = useState("");
@@ -92,7 +92,7 @@ export default function TalentPool({ candidates, onClose, onReengage, flash }) {
             const meta = stageMeta(c.status);
             const sl   = scoreLabel(c.fitScore);
             return (
-              <div key={c.id} className="tp-row">
+              <div key={c.id} className="tp-row" onClick={() => onOpenCandidate(c.id)}>
                 <span className="avatar" style={{ background: meta.color, flexShrink: 0 }}>{initials(c.name)}</span>
 
                 <div className="tp-info">
@@ -130,11 +130,12 @@ export default function TalentPool({ candidates, onClose, onReengage, flash }) {
                   </span>
                   <span className="tp-date">{fmtDate(c.updatedAt)}</span>
                   {c.status === "rejected" && (
-                    <button className="btn xs primary" onClick={() => onReengage(c)}>
+                    <button className="btn xs primary" onClick={(e) => { e.stopPropagation(); onReengage(c); }}>
                       <RotateCcw size={11} /> Re-engage
                     </button>
                   )}
                 </div>
+                <ChevronRight size={16} className="tp-chevron" />
               </div>
             );
           })}

@@ -14,6 +14,7 @@ import AddModal         from "./components/AddModal.jsx";
 import BulkUploadModal  from "./components/BulkUploadModal.jsx";
 import EmailModal       from "./components/EmailModal.jsx";
 import OfferModal       from "./components/OfferModal.jsx";
+import OfferPreviewModal from "./components/OfferPreviewModal.jsx";
 import SettingsModal    from "./components/SettingsModal.jsx";
 import AnalyticsModal   from "./components/AnalyticsModal.jsx";
 import JobsModal        from "./components/JobsModal.jsx";
@@ -48,6 +49,7 @@ export default function App() {
   const [showTalentPool, setShowTalentPool] = useState(false);
   const [email,          setEmail]          = useState(null);
   const [offerFor,       setOfferFor]       = useState(null);
+  const [previewOfferFor, setPreviewOfferFor] = useState(null);
 
   // bulk select
   const [selectMode,   setSelectMode]   = useState(false);
@@ -236,9 +238,11 @@ export default function App() {
     };
 
     let interviewerMail = null;
-    if (c.interview?.interviewerEmail) {
+    const interviewerEmails = (c.interview?.interviewerEmail || "")
+      .split(",").map((e) => e.trim()).filter(Boolean).join(", ");
+    if (interviewerEmails) {
       interviewerMail = {
-        to: c.interview.interviewerEmail,
+        to: interviewerEmails,
         subject: fill(settings.interviewerSubject, v),
         body:    fill(settings.interviewerBody,    v),
       };
@@ -288,6 +292,19 @@ export default function App() {
       kind: "rejection",
     });
   };
+
+  const buildOfferEmail = (c, letterText) => {
+    const v = { name: c.name, position: c.position, company: settings.company };
+    setEmail({
+      candidateId: c.id, to: c.email, attach: false,
+      subject: fill(settings.offerSubject, v),
+      body: letterText,
+      kind: "offer",
+    });
+  };
+
+  /* ── open a candidate profile from the Talent Pool ───────── */
+  const openFromPool = (id) => { setShowTalentPool(false); setOpenId(id); };
 
   // ── Public routes — render before full ATS mounts ─────────
   if (portalToken) return <DocumentPortal token={portalToken} />;
@@ -474,12 +491,14 @@ export default function App() {
       {open && (
         <CandidateDrawer
           c={open} settings={settings} patch={patch} flash={flash}
+          jobs={jobs.filter((j) => j.status === "open")}
           onClose={() => setOpenId(null)}
           onDelete={() => removeCandidate(open.id)}
           onInterviewEmail={(cOverride) => buildInterviewEmail(cOverride || open)}
           onDocEmail={() => buildDocumentEmail(open)}
           onRejectEmail={() => buildRejectionEmail(open)}
           onOffer={() => setOfferFor(open.id)}
+          onPreviewOffer={() => setPreviewOfferFor(open.id)}
         />
       )}
 
@@ -504,7 +523,10 @@ export default function App() {
       {showSettings   && <SettingsModal settings={settings} setSettings={setSettings} onClose={() => setShowSettings(false)} />}
       {showAnalytics  && <AnalyticsModal candidates={candidates} onClose={() => setShowAnalytics(false)} />}
       {showJobs       && <JobsModal jobs={jobs} setJobs={setJobs} candidates={candidates} onClose={() => setShowJobs(false)} flash={flash} />}
-      {showTalentPool && <TalentPool candidates={candidates} onClose={() => setShowTalentPool(false)} onReengage={handleReengage} flash={flash} />}
+      {showTalentPool && (
+        <TalentPool candidates={candidates} onClose={() => setShowTalentPool(false)}
+          onReengage={handleReengage} onOpenCandidate={openFromPool} flash={flash} />
+      )}
 
       {email && (
         <EmailModal payload={email} onClose={() => setEmail(null)} patch={patch} flash={flash} settings={settings} />
@@ -513,6 +535,18 @@ export default function App() {
         <OfferModal
           c={candidates.find((x) => x.id === offerFor)} settings={settings}
           onClose={() => setOfferFor(null)} patch={patch} flash={flash}
+          onReleased={(letterText) => buildOfferEmail(candidates.find((x) => x.id === offerFor), letterText)}
+        />
+      )}
+      {previewOfferFor && (
+        <OfferPreviewModal
+          c={candidates.find((x) => x.id === previewOfferFor)} flash={flash}
+          onClose={() => setPreviewOfferFor(null)}
+          onSendEmail={() => {
+            const c = candidates.find((x) => x.id === previewOfferFor);
+            buildOfferEmail(c, c.offer.letter);
+            setPreviewOfferFor(null);
+          }}
         />
       )}
 
